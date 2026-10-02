@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Habits</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #080812;
+            --surface:   #10102a;
+            --border:    #1e1e40;
+            --text:      #e8e8f0;
+            --muted:     #7070a0;
+            --amber:     #f0a030;
+            --amber-dim: #3a2800;
+            --teal:      #00c4b4;
+            --teal-dim:  #003830;
+            --green:     #40c070;
+            --red:       #e05050;
+            --cell-empty:#1e1e40;
+        }
+
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            font-size: 15px;
+            line-height: 1.4;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Layout ─────────────────────────── */
+        #app { min-height: 100vh; display: flex; flex-direction: column; }
+
+        .topbar {
+            position: sticky; top: 0; z-index: 10;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px;
+        }
+
+        .topbar-title {
+            font-size: 16px; font-weight: 700;
+            letter-spacing: -0.3px; color: var(--text);
+        }
+
+        .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+        .icon-btn {
+            background: none; border: none; color: var(--muted);
+            font-size: 18px; cursor: pointer; padding: 4px 6px;
+            border-radius: 6px; transition: color 0.15s;
+            line-height: 1;
+        }
+        .icon-btn:hover { color: var(--text); }
+
+        .back-btn {
+            background: none; border: none; color: var(--teal);
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            padding: 4px 0; display: flex; align-items: center; gap: 6px;
+        }
+
+        .scroll-body {
+            flex: 1; overflow-y: auto;
+            padding: 16px;
+            max-width: 520px; width: 100%; margin: 0 auto;
+        }
+
+        /* ── Setup ──────────────────────────── */
+        .setup-wrap { padding-top: 32px; }
+
+        .setup-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+        }
+
+        .setup-card h2 {
+            font-size: 18px; font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .setup-card p {
+            font-size: 13px; color: var(--muted);
+            margin-bottom: 24px; line-height: 1.6;
+        }
+
+        .form-group { margin-bottom: 16px; }
+
+        .form-group label {
+            display: block; font-size: 11px; font-weight: 600;
+            color: var(--muted); text-transform: uppercase;
+            letter-spacing: 0.6px; margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%; padding: 10px 12px;
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text);
+            font-size: 14px; font-family: 'SF Mono', monospace;
+            transition: border-color 0.15s;
+        }
+        .form-group input:focus {
+            outline: none; border-color: var(--teal);
+        }
+
+        .btn {
+            width: 100%; padding: 12px;
+            border-radius: 10px; border: none;
+            font-size: 15px; font-weight: 600;
+            cursor: pointer; transition: opacity 0.15s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: var(--teal); color: #000; }
+        .btn-ghost {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--muted); margin-top: 8px;
+        }
+
+        /* ── Error / status ─────────────────── */
+        .error-box {
+            background: #2a0f0f; border: 1px solid var(--red);
+            border-radius: 8px; padding: 10px 14px;
+            color: var(--red); font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .sync-note {
+            text-align: center; font-size: 12px; color: var(--muted);
+            padding: 20px 0 8px;
+        }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px;
+            color: var(--muted); font-size: 14px;
+        }
+
+        /* ── Habit cards ─────────────────────── */
+        .habit-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .habit-card:hover { border-color: var(--teal); background: #12122e; }
+
+        .card-top {
+            display: flex; align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 14px; gap: 8px;
+        }
+
+        .habit-name {
+            font-size: 16px; font-weight: 700;
+            letter-spacing: -0.2px; color: var(--text);
+            line-height: 1.2;
+        }
+
+        .habit-meta {
+            font-size: 11px; color: var(--muted);
+            margin-top: 2px; text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .streak-pill {
+            flex-shrink: 0;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px; font-weight: 700;
+            white-space: nowrap;
+        }
+        .streak-pill.active { background: var(--amber-dim); color: var(--amber); }
+        .streak-pill.zero { background: var(--border); color: var(--muted); }
+
+        .card-stats {
+            display: flex; gap: 20px;
+            margin-bottom: 14px;
+        }
+
+        .card-stat {}
+        .card-stat-label {
+            font-size: 10px; font-weight: 600; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .card-stat-value {
+            font-size: 15px; font-weight: 600; color: var(--text);
+        }
+        .card-stat-value.met { color: var(--green); }
+
+        /* Mini heatmap — 7 days */
+        .mini-heat {
+            display: flex; gap: 4px; align-items: center;
+        }
+        .mini-heat-label {
+            font-size: 10px; color: var(--muted);
+            margin-left: 6px; white-space: nowrap;
+        }
+        .mini-cell {
+            width: 14px; height: 14px;
+            border-radius: 3px;
+            background: var(--cell-empty);
+            position: relative;
+        }
+        .mini-cell.met    { background: var(--amber); }
+        .mini-cell.partial { background: var(--amber-dim); border: 1px solid var(--amber); }
+        .mini-cell.today  { border: 2px solid var(--teal); }
+
+        /* ── Detail view ─────────────────────── */
+        .detail-name {
+            font-size: 24px; font-weight: 800;
+            letter-spacing: -0.5px; margin-bottom: 4px;
+        }
+        .detail-meta {
+            font-size: 13px; color: var(--muted);
+            margin-bottom: 20px;
+        }
+
+        .stat-row {
+            display: flex; gap: 12px;
+            margin-bottom: 24px;
+        }
+        .stat-box {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 12px;
+            text-align: center;
+        }
+        .stat-box-val {
+            font-size: 28px; font-weight: 800;
+            letter-spacing: -1px; color: var(--text);
+            line-height: 1;
+        }
+        .stat-box-val.amber { color: var(--amber); }
+        .stat-box-label {
+            font-size: 11px; font-weight: 600;
+            color: var(--muted); text-transform: uppercase;
+            letter-spacing: 0.5px; margin-top: 4px;
+        }
+
+        /* Full heatmap */
+        .section-label {
+            font-size: 11px; font-weight: 600; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.6px;
+            margin-bottom: 10px;
+        }
+
+        .heatmap-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .heatmap-month-labels {
+            display: flex;
+            margin-bottom: 4px;
+            padding-left: 24px; /* space for day labels */
+        }
+
+        .heatmap-month-label {
+            font-size: 10px; color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .heatmap-body {
+            display: flex; gap: 4px;
+        }
+
+        .heatmap-day-labels {
+            display: flex; flex-direction: column;
+            gap: 2px; margin-right: 4px; flex-shrink: 0;
+        }
+        .day-label {
+            font-size: 9px; color: var(--muted);
+            height: 12px; line-height: 12px;
+            width: 16px; text-align: right;
+        }
+
+        .heatmap-cols { display: flex; gap: 2px; }
+
+        .heatmap-col {
+            display: flex; flex-direction: column; gap: 2px;
+        }
+
+        .heat-cell {
+            width: 12px; height: 12px;
+            border-radius: 2px;
+            background: var(--cell-empty);
+            flex-shrink: 0;
+        }
+        .heat-cell.met     { background: var(--amber); }
+        .heat-cell.partial { background: var(--amber-dim); border: 1px solid #5a3500; }
+        .heat-cell.future  { background: transparent; }
+
+        /* Log table */
+        .log-table {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+
+        .log-row {
+            display: flex; align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+        }
+        .log-row:last-child { border-bottom: none; }
+
+        .log-date {
+            font-size: 12px; color: var(--muted);
+            width: 80px; flex-shrink: 0;
+        }
+        .log-val {
+            flex: 1; font-size: 14px; font-weight: 600;
+            color: var(--text); font-variant-numeric: tabular-nums;
+        }
+        .log-badge {
+            font-size: 11px; font-weight: 700;
+            padding: 2px 7px; border-radius: 10px;
+        }
+        .log-badge.met { background: #0f3020; color: var(--green); }
+        .log-badge.miss { background: transparent; color: transparent; }
+
+        .no-logs {
+            padding: 20px 14px;
+            color: var(--muted); font-size: 13px;
+            text-align: center;
+        }
+
+        /* Spinner */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const UNIT_COMPLETED = 0, UNIT_REPS = 1, UNIT_TIME = 2;
+const FREQ_DAILY = 0, FREQ_WEEKLY = 1, FREQ_XPERWEEK = 2;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+    view: 'loading',     // loading | setup | dashboard | detail
+    data: null,
+    habit: null,
+    error: null,
+    syncing: false,
+    gistId: localStorage.getItem('ht_gistId') || '',
+    token:  localStorage.getItem('ht_token')  || '',
+    lastSync: localStorage.getItem('ht_lastSync') || null,
+};
+
+// ── Data helpers ──────────────────────────────────────────────────────────────
+function startOfDay(ts) {
+    const d = new Date(ts * 1000);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime() / 1000;
+}
+
+function startOfWeek(ts) {
+    const d = new Date(ts * 1000);
+    d.setHours(0, 0, 0, 0);
+    const dow = d.getDay(); // 0=Sun
+    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    return d.getTime() / 1000;
+}
+
+function dayTotal(logs, hid, ds) {
+    const de = ds + 86400;
+    return logs.filter(l => l.habitId === hid && l.timestamp >= ds && l.timestamp < de)
+               .reduce((s, l) => s + l.value, 0);
+}
+
+function weekTotal(logs, hid, ws) {
+    const we = ws + 604800;
+    return logs.filter(l => l.habitId === hid && l.timestamp >= ws && l.timestamp < we)
+               .reduce((s, l) => s + l.value, 0);
+}
+
+function weekDayCount(logs, hid, ws) {
+    const we = ws + 604800;
+    const days = new Set();
+    logs.filter(l => l.habitId === hid && l.timestamp >= ws && l.timestamp < we)
+        .forEach(l => days.add(Math.floor((l.timestamp - ws) / 86400)));
+    return days.size;
+}
+
+function effGoal(h) {
+    return h.unitType === UNIT_TIME ? h.goalAmount * 60 : h.goalAmount;
+}
+
+function dayGoalMet(logs, h, ds) {
+    if (h.freqType !== FREQ_DAILY) return false;
+    return dayTotal(logs, h.id, ds) >= effGoal(h);
+}
+
+function weekGoalMet(logs, h, ws) {
+    if (h.freqType === FREQ_DAILY) return false;
+    if (h.freqType === FREQ_WEEKLY) return weekTotal(logs, h.id, ws) >= effGoal(h);
+    return weekDayCount(logs, h.id, ws) >= h.freqValue;
+}
+
+function getStreak(logs, h) {
+    let n = 0, now = Math.floor(Date.now() / 1000);
+    if (h.freqType === FREQ_DAILY) {
+        let d = startOfDay(now);
+        while (dayGoalMet(logs, h, d)) { n++; d -= 86400; }
+    } else {
+        let w = startOfWeek(now);
+        while (weekGoalMet(logs, h, w)) { n++; w -= 604800; }
+    }
+    return n;
+}
+
+function hitRate(logs, h, periods) {
+    let met = 0;
+    const now = Math.floor(Date.now() / 1000);
+    if (h.freqType === FREQ_DAILY) {
+        let d = startOfDay(now);
+        for (let i = 0; i < periods; i++) { if (dayGoalMet(logs, h, d)) met++; d -= 86400; }
+    } else {
+        let w = startOfWeek(now);
+        for (let i = 0; i < periods; i++) { if (weekGoalMet(logs, h, w)) met++; w -= 604800; }
+    }
+    return { met, total: periods };
+}
+
+function todayProgress(logs, h) {
+    const now = Math.floor(Date.now() / 1000);
+    if (h.freqType === FREQ_DAILY) {
+        const cur = dayTotal(logs, h.id, startOfDay(now));
+        const goal = effGoal(h);
+        return { cur, goal, met: cur >= goal, pct: Math.min(1, goal ? cur / goal : 0) };
+    } else if (h.freqType === FREQ_WEEKLY) {
+        const cur = weekTotal(logs, h.id, startOfWeek(now));
+        const goal = effGoal(h);
+        return { cur, goal, met: cur >= goal, pct: Math.min(1, goal ? cur / goal : 0) };
+    } else {
+        const cur = weekDayCount(logs, h.id, startOfWeek(now));
+        const goal = h.freqValue;
+        return { cur, goal, met: cur >= goal, pct: Math.min(1, goal ? cur / goal : 0) };
+    }
+}
+
+// ── Formatting ────────────────────────────────────────────────────────────────
+function fmtTime(s) {
+    const m = Math.floor(s / 60), r = s % 60;
+    return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+function fmtVal(h, v) {
+    if (h.unitType === UNIT_TIME) return fmtTime(v);
+    if (h.unitType === UNIT_COMPLETED) return v >= 1 ? '✓' : '—';
+    return String(v);
+}
+
+function fmtProgress(h, cur, goal) {
+    if (h.freqType === FREQ_XPERWEEK) return `${cur} / ${goal} days`;
+    if (h.unitType === UNIT_COMPLETED) return cur >= 1 ? 'Done' : 'Not done';
+    if (h.unitType === UNIT_TIME) return `${fmtTime(cur)} / ${fmtTime(goal)}`;
+    return `${cur} / ${goal}`;
+}
+
+function fmtGoalLabel(h) {
+    const g = h.goalAmount;
+    if (h.unitType === UNIT_COMPLETED) return 'complete once';
+    if (h.unitType === UNIT_TIME) return fmtTime(g * 60);
+    return `${g} reps`;
+}
+
+function fmtFreqLabel(h) {
+    if (h.freqType === FREQ_DAILY) return 'every day';
+    if (h.freqType === FREQ_WEEKLY) return 'per week';
+    return `${h.freqValue}× per week`;
+}
+
+function fmtDate(ts) {
+    return new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function fmtSyncTime(ts) {
+    if (!ts) return 'Never synced';
+    const d = new Date(parseInt(ts));
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return `Synced ${date === today ? '' : date + ' '}at ${time}`;
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function fetchGist() {
+    const headers = { Accept: 'application/vnd.github.v3+json' };
+    if (state.token) headers['Authorization'] = `token ${state.token}`;
+    const res = await fetch(`https://api.github.com/gists/${state.gistId}`, { headers });
+    if (res.status === 401) throw new Error('Invalid token — check your GitHub token.');
+    if (res.status === 404) throw new Error('Gist not found — check the Gist ID.');
+    if (!res.ok) throw new Error(`GitHub returned ${res.status}.`);
+    const gist = await res.json();
+    const content = gist.files?.['habit_log.json']?.content;
+    if (!content) throw new Error('habit_log.json not found in this Gist.');
+    return JSON.parse(content);
+}
+
+// ── Mini heatmap ──────────────────────────────────────────────────────────────
+function miniHeat(logs, h) {
+    const now = Math.floor(Date.now() / 1000);
+    const todayStart = startOfDay(now);
+    let cells = '';
+    for (let i = 6; i >= 0; i--) {
+        const ds = todayStart - i * 86400;
+        let cls = '';
+        if (h.freqType === FREQ_DAILY) {
+            const t = dayTotal(logs, h.id, ds);
+            cls = t >= effGoal(h) ? 'met' : t > 0 ? 'partial' : '';
+        } else {
+            const ws = startOfWeek(ds);
+            cls = weekGoalMet(logs, h, ws) ? 'met' : '';
+        }
+        if (i === 0) cls += ' today';
+        cells += `<div class="mini-cell ${cls}"></div>`;
+    }
+    return cells;
+}
+
+// ── Full heatmap ──────────────────────────────────────────────────────────────
+function fullHeatmap(logs, h) {
+    const now = Math.floor(Date.now() / 1000);
+    const todayStart = startOfDay(now);
+    const WEEKS = 17;
+
+    // Start from Monday of the week 17 weeks ago
+    let gridStart = startOfWeek(todayStart - (WEEKS - 1) * 604800);
+
+    const DAY_NAMES = ['M', '', 'W', '', 'F', '', 'S'];
+
+    // Month labels
+    let monthHTML = '';
+    let prevMonth = -1;
+    let colWidths = [];
+    for (let w = 0; w < WEEKS; w++) {
+        const wStart = gridStart + w * 604800;
+        const d = new Date(wStart * 1000);
+        const mo = d.getMonth();
+        colWidths.push(14); // 12px cell + 2px gap
+        if (mo !== prevMonth) {
+            monthHTML += `<span class="heatmap-month-label" style="position:absolute;left:${w * 14}px">${d.toLocaleString('en-GB', { month: 'short' })}</span>`;
+            prevMonth = mo;
+        }
+    }
+
+    // Columns
+    let colsHTML = '';
+    for (let w = 0; w < WEEKS; w++) {
+        let colHTML = '';
+        for (let d = 0; d < 7; d++) {
+            const ds = gridStart + w * 604800 + d * 86400;
+            if (ds > todayStart) {
+                colHTML += `<div class="heat-cell future"></div>`;
+                continue;
+            }
+            let cls = '';
+            if (h.freqType === FREQ_DAILY) {
+                const t = dayTotal(logs, h.id, ds);
+                cls = t >= effGoal(h) ? 'met' : t > 0 ? 'partial' : '';
+            } else {
+                const ws = startOfWeek(ds);
+                cls = weekGoalMet(logs, h, ws) ? 'met' : '';
+            }
+            colHTML += `<div class="heat-cell ${cls}"></div>`;
+        }
+        colsHTML += `<div class="heatmap-col">${colHTML}</div>`;
+    }
+
+    const dayLabels = DAY_NAMES.map(n => `<div class="day-label">${n}</div>`).join('');
+    const totalWidth = WEEKS * 14;
+
+    return `
+        <div style="position:relative;height:16px;margin-left:24px;margin-bottom:6px;">
+            <div style="position:relative;width:${totalWidth}px">${monthHTML}</div>
+        </div>
+        <div class="heatmap-body">
+            <div class="heatmap-day-labels">${dayLabels}</div>
+            <div class="heatmap-cols">${colsHTML}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:12px;font-size:11px;color:var(--muted)">
+            <div class="heat-cell" style="flex-shrink:0"></div> None
+            <div class="heat-cell partial" style="flex-shrink:0"></div> Partial
+            <div class="heat-cell met" style="flex-shrink:0"></div> Goal met
+        </div>
+    `;
+}
+
+// ── Render functions ──────────────────────────────────────────────────────────
+function renderSetup() {
+    return `
+        <div class="topbar">
+            <span class="topbar-title">Habits</span>
+        </div>
+        <div class="scroll-body">
+            <div class="setup-wrap">
+                <div class="setup-card">
+                    <h2>Connect your data</h2>
+                    <p>Enter your GitHub Gist ID and a personal access token with <strong>gist</strong> scope. These are stored only in this browser.</p>
+                    ${state.error ? `<div class="error-box">${state.error}</div>` : ''}
+                    <form id="setup-form">
+                        <div class="form-group">
+                            <label>Gist ID</label>
+                            <input id="f-gist" type="text" value="${state.gistId}"
+                                placeholder="e.g. 1075379cad3e04c3053c1f99d58f0fd8"
+                                autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="off"/>
+                        </div>
+                        <div class="form-group">
+                            <label>GitHub Token</label>
+                            <input id="f-token" type="password" value="${state.token}"
+                                placeholder="ghp_…" autocomplete="off"/>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Connect</button>
+                        ${state.data ? `<button class="btn btn-ghost" type="button" id="cancel-setup">Cancel</button>` : ''}
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderDashboard() {
+    const { data, error, syncing, lastSync } = state;
+    const habits = data?.habits || [];
+    const logs   = data?.logs   || [];
+
+    const cards = habits.length === 0
+        ? `<div class="empty-state">No habits found in data.</div>`
+        : habits.map(h => {
+            const streak  = getStreak(logs, h);
+            const periods = h.freqType === FREQ_DAILY ? 7 : 4;
+            const { met, total } = hitRate(logs, h, periods);
+            const prog = todayProgress(logs, h);
+            const pLabel = h.freqType === FREQ_DAILY ? 'last 7 days' : 'last 4 wks';
+            const sUnit  = h.freqType === FREQ_DAILY ? 'd' : 'wk';
+
+            return `
+                <div class="habit-card" data-id="${h.id}">
+                    <div class="card-top">
+                        <div>
+                            <div class="habit-name">${h.name}</div>
+                            <div class="habit-meta">${fmtGoalLabel(h)} · ${fmtFreqLabel(h)}</div>
+                        </div>
+                        <div class="streak-pill ${streak > 0 ? 'active' : 'zero'}">
+                            ${streak > 0 ? `🔥 ${streak}${sUnit}` : 'No streak'}
+                        </div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="card-stat">
+                            <div class="card-stat-label">${h.freqType === FREQ_DAILY ? 'Today' : 'This week'}</div>
+                            <div class="card-stat-value ${prog.met ? 'met' : ''}">${fmtProgress(h, prog.cur, prog.goal)}</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-label">Hit rate (${pLabel})</div>
+                            <div class="card-stat-value">${met}/${total}</div>
+                        </div>
+                    </div>
+                    <div class="mini-heat">
+                        ${miniHeat(logs, h)}
+                        <span class="mini-heat-label">last 7 days</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    return `
+        <div class="topbar">
+            <span class="topbar-title">Habits</span>
+            <div class="topbar-actions">
+                <button class="icon-btn" id="refresh-btn" title="Refresh">
+                    ${syncing ? '<span class="spinner"></span>' : '↻'}
+                </button>
+                <button class="icon-btn" id="settings-btn" title="Settings">⚙</button>
+            </div>
+        </div>
+        <div class="scroll-body">
+            ${error ? `<div class="error-box" style="margin-bottom:12px">${error}</div>` : ''}
+            ${cards}
+            <div class="sync-note">${fmtSyncTime(lastSync)}</div>
+        </div>
+    `;
+}
+
+function renderDetail() {
+    const h    = state.habit;
+    const logs = state.data?.logs || [];
+    const now  = Math.floor(Date.now() / 1000);
+
+    const streak  = getStreak(logs, h);
+    const periods = h.freqType === FREQ_DAILY ? 7 : 4;
+    const { met, total } = hitRate(logs, h, periods);
+    const sUnit  = h.freqType === FREQ_DAILY ? 'day streak' : 'week streak';
+    const pLabel = h.freqType === FREQ_DAILY ? 'last 7 days' : 'last 4 wks';
+
+    const habitLogs = [...logs]
+        .filter(l => l.habitId === h.id)
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 60);
+
+    const logRows = habitLogs.length === 0
+        ? `<div class="no-logs">No logs recorded yet.</div>`
+        : habitLogs.map(l => {
+            const ds = startOfDay(l.timestamp);
+            const dMet = h.freqType === FREQ_DAILY
+                ? dayTotal(logs, h.id, ds) >= effGoal(h)
+                : false;
+            return `
+                <div class="log-row">
+                    <span class="log-date">${fmtDate(l.timestamp)}</span>
+                    <span class="log-val">${fmtVal(h, l.value)}</span>
+                    <span class="log-badge ${dMet ? 'met' : 'miss'}">${dMet ? 'done' : ''}</span>
+                </div>
+            `;
+        }).join('');
+
+    return `
+        <div class="topbar">
+            <button class="back-btn" id="back-btn">← Back</button>
+        </div>
+        <div class="scroll-body">
+            <div class="detail-name">${h.name}</div>
+            <div class="detail-meta">${fmtGoalLabel(h)} · ${fmtFreqLabel(h)}</div>
+            <div class="stat-row">
+                <div class="stat-box">
+                    <div class="stat-box-val amber">${streak}</div>
+                    <div class="stat-box-label">${sUnit}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-val">${met}/${total}</div>
+                    <div class="stat-box-label">${pLabel}</div>
+                </div>
+            </div>
+            <div class="section-label">17-week history</div>
+            <div class="heatmap-wrap">${fullHeatmap(logs, h)}</div>
+            <div class="section-label">Recent logs</div>
+            <div class="log-table">${logRows}</div>
+        </div>
+    `;
+}
+
+// ── Mount & event delegation ──────────────────────────────────────────────────
+function render() {
+    const app = document.getElementById('app');
+
+    if (state.view === 'loading') {
+        app.innerHTML = `<div style="padding:60px;text-align:center;color:var(--muted)"><span class="spinner"></span></div>`;
+        return;
+    }
+    if (state.view === 'setup')     { app.innerHTML = renderSetup();     bindSetup();     return; }
+    if (state.view === 'dashboard') { app.innerHTML = renderDashboard(); bindDashboard(); return; }
+    if (state.view === 'detail')    { app.innerHTML = renderDetail();    bindDetail();    return; }
+}
+
+function bindSetup() {
+    document.getElementById('setup-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const gistId = document.getElementById('f-gist').value.trim();
+        const token  = document.getElementById('f-token').value.trim();
+        if (!gistId) { state.error = 'Gist ID is required.'; render(); return; }
+        state.gistId = gistId; state.token = token; state.error = null;
+        localStorage.setItem('ht_gistId', gistId);
+        localStorage.setItem('ht_token', token);
+        await doFetch();
+    });
+    document.getElementById('cancel-setup')?.addEventListener('click', () => {
+        state.view = 'dashboard'; render();
+    });
+}
+
+function bindDashboard() {
+    document.getElementById('refresh-btn').addEventListener('click', doRefresh);
+    document.getElementById('settings-btn').addEventListener('click', () => {
+        state.view = 'setup'; render();
+    });
+    document.querySelectorAll('.habit-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const id = parseInt(card.dataset.id);
+            state.habit = state.data.habits.find(h => h.id === id);
+            state.view = 'detail'; render();
+        });
+    });
+}
+
+function bindDetail() {
+    document.getElementById('back-btn').addEventListener('click', () => {
+        state.view = 'dashboard'; render();
+    });
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+async function doFetch() {
+    state.view = 'loading'; render();
+    try {
+        const data = await fetchGist();
+        state.data = data;
+        state.lastSync = String(Date.now());
+        localStorage.setItem('ht_habitData', JSON.stringify(data));
+        localStorage.setItem('ht_lastSync', state.lastSync);
+        state.view = 'dashboard';
+    } catch (err) {
+        state.error = err.message;
+        state.view = 'setup';
+    }
+    render();
+}
+
+async function doRefresh() {
+    if (state.syncing) return;
+    state.syncing = true; state.error = null; render();
+    try {
+        const data = await fetchGist();
+        state.data = data;
+        state.lastSync = String(Date.now());
+        localStorage.setItem('ht_habitData', JSON.stringify(data));
+        localStorage.setItem('ht_lastSync', state.lastSync);
+    } catch (err) {
+        state.error = `Refresh failed: ${err.message}`;
+    }
+    state.syncing = false; render();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async function init() {
+    const cached = localStorage.getItem('ht_habitData');
+    if (cached && state.gistId) {
+        state.data = JSON.parse(cached);
+        state.view = 'dashboard';
+        render();
+        doRefresh(); // background refresh
+        return;
+    }
+    if (!state.gistId) { state.view = 'setup'; render(); return; }
+    await doFetch();
+})();
+</script>
+</body>
+</html>
